@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { type Note, updateNote } from '@/lib/db';
+import { type Note, updateNote, createNote, getAllNotes, db } from '@/lib/db';
 
 interface NoteHeaderProps {
   note: Note | null;
@@ -9,6 +9,7 @@ interface NoteHeaderProps {
   onViewModeChange: (mode: 'editor' | 'split' | 'preview') => void;
   onTitleChange: (title: string) => void;
   onSave: () => void;
+  onNoteCreated?: () => void;
   wordCount: number;
   lastSaved: Date | null;
 }
@@ -19,11 +20,15 @@ export default function NoteHeader({
   onViewModeChange,
   onTitleChange,
   onSave,
+  onNoteCreated,
   wordCount,
   lastSaved,
 }: NoteHeaderProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -56,6 +61,7 @@ export default function NoteHeader({
     a.download = `${note.title || 'untitled'}.md`;
     a.click();
     URL.revokeObjectURL(url);
+    setShowExportMenu(false);
   };
 
   const handleExportJson = () => {
@@ -68,6 +74,85 @@ export default function NoteHeader({
     a.download = `${note.title || 'untitled'}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  const handleImportMd = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const content = await file.text();
+    const title = file.name.replace(/\.md$/, '') || 'Imported Note';
+
+    const id = await createNote(title, content);
+    onNoteCreated?.();
+    setShowExportMenu(false);
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleBackupExport = async () => {
+    const allNotes = await getAllNotes();
+    const data = JSON.stringify(allNotes, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kurosumi-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  const handleBackupImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const notes: Note[] = JSON.parse(content);
+      
+      if (!Array.isArray(notes)) {
+        alert('Invalid backup file format');
+        return;
+      }
+
+      let imported = 0;
+      for (const note of notes) {
+        // Skip if note with same title and content already exists
+        const existing = await db.notes
+          .where('title')
+          .equals(note.title)
+          .first();
+        
+        if (existing && existing.content === note.content) {
+          continue;
+        }
+
+        await db.notes.add({
+          title: note.title || 'Imported Note',
+          content: note.content || '',
+          createdAt: note.createdAt ? new Date(note.createdAt) : new Date(),
+          updatedAt: note.updatedAt ? new Date(note.updatedAt) : new Date(),
+          pinned: note.pinned || false,
+        });
+        imported++;
+      }
+
+      alert(`Imported ${imported} notes`);
+      onNoteCreated?.();
+      setShowExportMenu(false);
+    } catch (error) {
+      alert('Failed to import backup file');
+    }
+
+    // Reset input
+    if (backupInputRef.current) {
+      backupInputRef.current.value = '';
+    }
   };
 
   return (
@@ -145,28 +230,80 @@ export default function NoteHeader({
             </button>
           </div>
 
-          {/* Export dropdown */}
-          <div className="relative group">
-            <button className="p-1.5 rounded text-[#9B9B9B] hover:text-[#EFEFE6] hover:bg-[#1A1A1E]">
+          {/* Export/Import dropdown */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="p-1.5 rounded text-[#9B9B9B] hover:text-[#EFEFE6] hover:bg-[#1A1A1E]"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
               </svg>
             </button>
-            <div className="absolute right-0 top-full mt-1 w-36 bg-[#1A1A1E] border border-[#1E1E2A] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <button
-                onClick={handleExportMd}
-                className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded-t-lg"
-              >
-                Export as .md
-              </button>
-              <button
-                onClick={handleExportJson}
-                className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded-b-lg"
-              >
-                Export as .json
-              </button>
-            </div>
+            
+            {showExportMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 w-48 bg-[#1A1A1E] border border-[#1E1E2A] rounded-lg shadow-lg z-50">
+                  <div className="p-1">
+                    <div className="px-2 py-1 text-xs font-medium text-[#9B9B9B]">Export</div>
+                    <button
+                      onClick={handleExportMd}
+                      className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded"
+                    >
+                      Export as .md
+                    </button>
+                    <button
+                      onClick={handleExportJson}
+                      className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded"
+                    >
+                      Export as .json
+                    </button>
+                    
+                    <div className="border-t border-[#1E1E2A] my-1" />
+                    <div className="px-2 py-1 text-xs font-medium text-[#9B9B9B]">Import</div>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded"
+                    >
+                      Import .md file
+                    </button>
+                    
+                    <div className="border-t border-[#1E1E2A] my-1" />
+                    <div className="px-2 py-1 text-xs font-medium text-[#9B9B9B]">Backup</div>
+                    <button
+                      onClick={handleBackupExport}
+                      className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded"
+                    >
+                      Export all notes
+                    </button>
+                    <button
+                      onClick={() => backupInputRef.current?.click()}
+                      className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded"
+                    >
+                      Import backup
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
+
+          {/* Hidden file inputs */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".md,.markdown"
+            onChange={handleImportMd}
+            className="hidden"
+          />
+          <input
+            ref={backupInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleBackupImport}
+            className="hidden"
+          />
         </div>
       )}
     </header>

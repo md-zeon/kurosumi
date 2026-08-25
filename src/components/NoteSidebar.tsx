@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type RefObject } from 'react';
 import { type Note, getAllNotes, searchNotes, deleteNote, togglePin } from '@/lib/db';
 import NoteItem from './NoteItem';
 import SearchBar from './SearchBar';
@@ -10,9 +10,10 @@ interface NoteSidebarProps {
   onSelectNote: (id: number) => void;
   onNewNote: () => void;
   refreshTrigger?: number;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
 }
 
-export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, refreshTrigger }: NoteSidebarProps) {
+export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, refreshTrigger, searchInputRef }: NoteSidebarProps) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -67,7 +68,7 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
             </svg>
           </button>
         </div>
-        <SearchBar value={searchQuery} onChange={setSearchQuery} />
+        <SearchBar ref={searchInputRef} value={searchQuery} onChange={setSearchQuery} />
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">

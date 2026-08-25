@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { type Note, createNote, updateNote, getNote, getAllNotes } from '@/lib/db';
 import NoteSidebar from '@/components/NoteSidebar';
 import NoteHeader from '@/components/NoteHeader';
@@ -14,6 +14,8 @@ export default function Home() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Load note when selected
   useEffect(() => {
@@ -99,11 +101,39 @@ export default function Home() {
         e.preventDefault();
         handleNewNote();
       }
+
+      // Ctrl+Shift+F: Focus search
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      // F11: Toggle fullscreen
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+
+      // Escape: Exit fullscreen
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNewNote]);
+  }, [handleNewNote, isFullscreen]);
+
+  // Toggle fullscreen
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, []);
 
   // Word count
   const wordCount = useMemo(() => {
@@ -122,6 +152,7 @@ export default function Home() {
         onSelectNote={setSelectedNoteId}
         onNewNote={handleNewNote}
         refreshTrigger={refreshTrigger}
+        searchInputRef={searchInputRef}
       />
 
       {/* Main content */}
@@ -133,6 +164,7 @@ export default function Home() {
           onViewModeChange={setViewMode}
           onTitleChange={handleTitleChange}
           onSave={handleSave}
+          onNoteCreated={() => setRefreshTrigger((prev) => prev + 1)}
           wordCount={wordCount}
           lastSaved={lastSaved}
         />
