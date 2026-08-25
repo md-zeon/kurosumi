@@ -135,13 +135,23 @@ export default function Home() {
     }
   }, []);
 
-  // Word count
+  // Word count and character count
   const wordCount = useMemo(() => {
     if (!currentNote?.content) return 0;
     return currentNote.content
       .trim()
       .split(/\s+/)
       .filter((w) => w.length > 0).length;
+  }, [currentNote?.content]);
+
+  const charCount = useMemo(() => {
+    if (!currentNote?.content) return 0;
+    return currentNote.content.length;
+  }, [currentNote?.content]);
+
+  const lineCount = useMemo(() => {
+    if (!currentNote?.content) return 0;
+    return currentNote.content.split('\n').length;
   }, [currentNote?.content]);
 
   return (
@@ -196,6 +206,21 @@ export default function Home() {
             </>
           )}
         </div>
+
+        {/* Status bar */}
+        {currentNote && (
+          <div className="h-6 border-t border-[#1E1E2A] bg-[#12121A] flex items-center justify-between px-4 text-xs text-[#9B9B9B]">
+            <div className="flex items-center gap-4">
+              <span>{lineCount} lines</span>
+              <span>{wordCount} words</span>
+              <span>{charCount} chars</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span>Markdown</span>
+              <span>GFM</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
