@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
+import MarkdownToolbar from './MarkdownToolbar';
 
 interface MarkdownEditorProps {
   content: string;
@@ -16,6 +17,31 @@ export default function MarkdownEditor({ content, onChange, onSave }: MarkdownEd
       onChange(e.target.value);
     },
     [onChange]
+  );
+
+  const handleInsert = useCallback(
+    (before: string, after?: string) => {
+      if (!textareaRef.current) return;
+      
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = content.substring(start, end);
+      const newText = content.substring(0, start) + before + selectedText + (after || '') + content.substring(end);
+      
+      onChange(newText);
+      
+      // Set cursor position after insert
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const newPos = start + before.length + selectedText.length;
+          textareaRef.current.selectionStart = newPos;
+          textareaRef.current.selectionEnd = newPos;
+          textareaRef.current.focus();
+        }
+      }, 0);
+    },
+    [content, onChange]
   );
 
   const handleKeyDown = useCallback(
@@ -55,16 +81,19 @@ export default function MarkdownEditor({ content, onChange, onSave }: MarkdownEd
   }, [content]);
 
   return (
-    <div className="flex-1 h-full overflow-auto bg-[#1A1A1E]">
-      <textarea
-        ref={textareaRef}
-        value={content}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        placeholder="Start writing... (Markdown supported)"
-        className="w-full h-full p-6 bg-transparent text-[#EFEFE6] font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-[#9B9B9B]"
-        spellCheck={false}
-      />
+    <div className="flex-1 h-full flex flex-col bg-[#1A1A1E]">
+      <MarkdownToolbar onInsert={handleInsert} />
+      <div className="flex-1 overflow-auto">
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Start writing... (Markdown supported)"
+          className="w-full h-full p-6 bg-transparent text-[#EFEFE6] font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-[#9B9B9B]"
+          spellCheck={false}
+        />
+      </div>
     </div>
   );
 }

@@ -70,3 +70,17 @@ export async function togglePin(id: number): Promise<void> {
     await db.notes.update(id, { pinned: !note.pinned });
   }
 }
+
+export async function duplicateNote(id: number): Promise<number | undefined> {
+  const note = await db.notes.get(id);
+  if (!note) return undefined;
+  
+  return await db.notes.add({
+    title: `${note.title} (Copy)`,
+    content: note.content,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    pinned: false,
+    folderId: note.folderId,
+  });
+}

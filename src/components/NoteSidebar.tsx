@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, type RefObject } from 'react';
-import { type Note, getAllNotes, searchNotes, deleteNote, togglePin } from '@/lib/db';
+import { type Note, getAllNotes, searchNotes, deleteNote, togglePin, duplicateNote } from '@/lib/db';
 import NoteItem from './NoteItem';
 import SearchBar from './SearchBar';
+
+type SortOption = 'updated-desc' | 'updated-asc' | 'created-desc' | 'created-asc' | 'title-asc' | 'title-desc';
 
 interface NoteSidebarProps {
   selectedNoteId: number | null;
@@ -13,9 +15,31 @@ interface NoteSidebarProps {
   searchInputRef?: RefObject<HTMLInputElement | null>;
 }
 
+function sortNotes(notes: Note[], sortBy: SortOption): Note[] {
+  const sorted = [...notes];
+  
+  switch (sortBy) {
+    case 'updated-desc':
+      return sorted.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    case 'updated-asc':
+      return sorted.sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+    case 'created-desc':
+      return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    case 'created-asc':
+      return sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    case 'title-asc':
+      return sorted.sort((a, b) => a.title.localeCompare(b.title));
+    case 'title-desc':
+      return sorted.sort((a, b) => b.title.localeCompare(a.title));
+    default:
+      return sorted;
+  }
+}
+
 export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, refreshTrigger, searchInputRef }: NoteSidebarProps) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('updated-desc');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -24,16 +48,18 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
 
   useEffect(() => {
     if (searchQuery) {
-      searchNotes(searchQuery).then(setNotes);
+      searchNotes(searchQuery).then((results) => {
+        setNotes(sortNotes(results, sortBy));
+      });
     } else {
       loadNotes();
     }
-  }, [searchQuery]);
+  }, [searchQuery, sortBy]);
 
   async function loadNotes() {
     setIsLoading(true);
     const allNotes = await getAllNotes();
-    setNotes(allNotes);
+    setNotes(sortNotes(allNotes, sortBy));
     setIsLoading(false);
   }
 
@@ -49,9 +75,28 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
     loadNotes();
   }
 
+  async function handleDuplicate(id: number) {
+    const newId = await duplicateNote(id);
+    if (newId) {
+      loadNotes();
+      onSelectNote(newId);
+    }
+  }
+
   // Separate pinned and unpinned notes
   const pinnedNotes = notes.filter((n) => n.pinned);
   const unpinnedNotes = notes.filter((n) => !n.pinned);
+
+  const getSortLabel = (option: SortOption) => {
+    switch (option) {
+      case 'updated-desc': return 'Last modified';
+      case 'updated-asc': return 'Oldest modified';
+      case 'created-desc': return 'Newest created';
+      case 'created-asc': return 'Oldest created';
+      case 'title-asc': return 'Title A-Z';
+      case 'title-desc': return 'Title Z-A';
+    }
+  };
 
   return (
     <aside className="w-64 h-full bg-[#12121A] border-r border-[#1E1E2A] flex flex-col">
@@ -70,6 +115,24 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
         </div>
         <SearchBar ref={searchInputRef} value={searchQuery} onChange={setSearchQuery} />
       </div>
+
+      {/* Sort dropdown */}
+      {notes.length > 0 && (
+        <div className="px-4 py-2 border-b border-[#1E1E2A]">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="w-full text-xs bg-[#1A1A1E] text-[#9B9B9B] border border-[#1E1E2A] rounded px-2 py-1.5 focus:outline-none focus:border-[#5542FF]"
+          >
+            <option value="updated-desc">Last modified</option>
+            <option value="updated-asc">Oldest modified</option>
+            <option value="created-desc">Newest created</option>
+            <option value="created-asc">Oldest created</option>
+            <option value="title-asc">Title A-Z</option>
+            <option value="title-desc">Title Z-A</option>
+          </select>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-2">
         {isLoading ? (
@@ -94,6 +157,7 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
                     onSelect={() => note.id && onSelectNote(note.id)}
                     onDelete={() => note.id && handleDelete(note.id)}
                     onTogglePin={() => note.id && handleTogglePin(note.id)}
+                    onDuplicate={() => note.id && handleDuplicate(note.id)}
                   />
                 ))}
               </div>
@@ -111,6 +175,7 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
                     onSelect={() => note.id && onSelectNote(note.id)}
                     onDelete={() => note.id && handleDelete(note.id)}
                     onTogglePin={() => note.id && handleTogglePin(note.id)}
+                    onDuplicate={() => note.id && handleDuplicate(note.id)}
                   />
                 ))}
               </div>

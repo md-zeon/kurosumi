@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { type Note, updateNote, createNote, getAllNotes, db } from '@/lib/db';
+import { renderMarkdown } from '@/lib/markdown';
 
 interface NoteHeaderProps {
   note: Note | null;
@@ -72,6 +73,43 @@ export default function NoteHeader({
     const a = document.createElement('a');
     a.href = url;
     a.download = `${note.title || 'untitled'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  const handleExportHtml = () => {
+    if (!note) return;
+    const htmlContent = renderMarkdown(note.content);
+    const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${note.title || 'Untitled'}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; color: #333; }
+    h1, h2, h3, h4, h5, h6 { margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    code { background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 5px; overflow-x: auto; }
+    pre code { background: transparent; padding: 0; }
+    blockquote { border-left: 4px solid #5542FF; margin: 0; padding-left: 1rem; color: #666; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+    img { max-width: 100%; }
+    a { color: #5542FF; }
+  </style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`;
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${note.title || 'untitled'}.html`;
     a.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
@@ -258,6 +296,12 @@ export default function NoteHeader({
                       className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded"
                     >
                       Export as .json
+                    </button>
+                    <button
+                      onClick={handleExportHtml}
+                      className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded"
+                    >
+                      Export as .html
                     </button>
                     
                     <div className="border-t border-[#1E1E2A] my-1" />
