@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { type Note, updateNote, createNote, getAllNotes, db } from '@/lib/db';
 import { renderMarkdown } from '@/lib/markdown';
+import { useToast } from './Toast';
 
 interface NoteHeaderProps {
   note: Note | null;
@@ -27,9 +28,11 @@ export default function NoteHeader({
 }: NoteHeaderProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
+  const { addToast } = useToast();
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -113,6 +116,186 @@ ${htmlContent}
     a.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
+  };
+
+  const handleExportPdf = async () => {
+    if (!note) return;
+    setIsExporting(true);
+    
+    try {
+      const html2pdf = (await import('html2pdf.js')).default;
+      const htmlContent = renderMarkdown(note.content);
+      
+      const container = document.createElement('div');
+      container.innerHTML = `
+        <h1 style="font-size: 24px; margin-bottom: 16px; color: #1a1a1a;">${note.title || 'Untitled'}</h1>
+        <div style="font-size: 14px; line-height: 1.6; color: #333;">
+          ${htmlContent}
+        </div>
+      `;
+      
+      // Add styles for PDF
+      const style = document.createElement('style');
+      style.textContent = `
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        h1, h2, h3, h4, h5, h6 { margin-top: 16px; margin-bottom: 8px; }
+        p { margin-bottom: 12px; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
+        pre { background: #f4f4f4; padding: 12px; border-radius: 4px; overflow-x: auto; }
+        pre code { background: transparent; padding: 0; }
+        blockquote { border-left: 4px solid #5542FF; margin: 0; padding-left: 12px; color: #666; }
+        table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f4f4f4; }
+        img { max-width: 100%; }
+        a { color: #5542FF; }
+      `;
+      
+      container.prepend(style);
+      
+      const opt = {
+        margin: 1,
+        filename: `${note.title || 'untitled'}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const },
+      };
+      
+      await html2pdf().from(container).set(opt).save();
+      addToast('Exported as PDF', 'success');
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      addToast('Failed to export PDF', 'error');
+    } finally {
+      setIsExporting(false);
+      setShowExportMenu(false);
+    }
+  };
+
+  const handleExportDocx = async () => {
+    if (!note) return;
+    setIsExporting(true);
+    
+    try {
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, TableRow, TableCell, Table, WidthType, BorderStyle } = await import('docx');
+      const { saveAs } = await import('file-saver');
+      
+      // Parse markdown content into docx paragraphs
+      const lines = note.content.split('\n');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const children: any[] = [];
+      
+      for (const line of lines) {
+        // Headers
+        if (line.startsWith('# ')) {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: line.slice(2), bold: true, size: 32 })],
+            heading: HeadingLevel.HEADING_1,
+            spacing: { after: 200 },
+          }));
+        } else if (line.startsWith('## ')) {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: line.slice(3), bold: true, size: 28 })],
+            heading: HeadingLevel.HEADING_2,
+            spacing: { after: 200 },
+          }));
+        } else if (line.startsWith('### ')) {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: line.slice(4), bold: true, size: 24 })],
+            heading: HeadingLevel.HEADING_3,
+            spacing: { after: 200 },
+          }));
+        } else if (line.startsWith('> ')) {
+          // Blockquote
+          children.push(new Paragraph({
+            children: [new TextRun({ text: line.slice(2), italics: true, color: '666666' })],
+            indent: { left: 720 },
+            spacing: { after: 200 },
+          }));
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          // List item
+          children.push(new Paragraph({
+            children: [new TextRun({ text: line.slice(2) })],
+            bullet: { level: 0 },
+            spacing: { after: 100 },
+          }));
+        } else if (line.startsWith('---')) {
+          // Horizontal rule
+          children.push(new Paragraph({
+            children: [new TextRun({ text: '' })],
+            spacing: { after: 200 },
+          }));
+        } else if (line.trim() === '') {
+          // Empty line
+          children.push(new Paragraph({ children: [] }));
+        } else {
+          // Regular paragraph - handle inline formatting
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const textRuns: any[] = [];
+          let remaining = line;
+          
+          // Simple inline formatting (bold, italic, code)
+          while (remaining.length > 0) {
+            const boldMatch = remaining.match(/\*\*(.*?)\*\*/);
+            const italicMatch = remaining.match(/\*(.*?)\*/);
+            const codeMatch = remaining.match(/`(.*?)`/);
+            
+            if (boldMatch && boldMatch.index !== undefined) {
+              if (boldMatch.index > 0) {
+                textRuns.push(new TextRun({ text: remaining.slice(0, boldMatch.index) }));
+              }
+              textRuns.push(new TextRun({ text: boldMatch[1], bold: true }));
+              remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
+            } else if (italicMatch && italicMatch.index !== undefined) {
+              if (italicMatch.index > 0) {
+                textRuns.push(new TextRun({ text: remaining.slice(0, italicMatch.index) }));
+              }
+              textRuns.push(new TextRun({ text: italicMatch[1], italics: true }));
+              remaining = remaining.slice(italicMatch.index + italicMatch[0].length);
+            } else if (codeMatch && codeMatch.index !== undefined) {
+              if (codeMatch.index > 0) {
+                textRuns.push(new TextRun({ text: remaining.slice(0, codeMatch.index) }));
+              }
+              textRuns.push(new TextRun({ text: codeMatch[1], font: 'Courier New' }));
+              remaining = remaining.slice(codeMatch.index + codeMatch[0].length);
+            } else {
+              textRuns.push(new TextRun({ text: remaining }));
+              remaining = '';
+            }
+          }
+          
+          children.push(new Paragraph({
+            children: textRuns,
+            spacing: { after: 200 },
+          }));
+        }
+      }
+      
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: note.title || 'Untitled', bold: true, size: 36 })],
+              heading: HeadingLevel.TITLE,
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 400 },
+            }),
+            ...children,
+          ],
+        }],
+      });
+      
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `${note.title || 'untitled'}.docx`);
+      addToast('Exported as DOCX', 'success');
+    } catch (error) {
+      console.error('DOCX export failed:', error);
+      addToast('Failed to export DOCX', 'error');
+    } finally {
+      setIsExporting(false);
+      setShowExportMenu(false);
+    }
   };
 
   const handleImportMd = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,6 +485,20 @@ ${htmlContent}
                       className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded"
                     >
                       Export as .html
+                    </button>
+                    <button
+                      onClick={handleExportPdf}
+                      disabled={isExporting}
+                      className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isExporting ? 'Exporting...' : 'Export as .pdf'}
+                    </button>
+                    <button
+                      onClick={handleExportDocx}
+                      disabled={isExporting}
+                      className="w-full px-3 py-2 text-left text-sm text-[#EFEFE6] hover:bg-[#2A2A3E] rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isExporting ? 'Exporting...' : 'Export as .docx'}
                     </button>
                     
                     <div className="border-t border-[#1E1E2A] my-1" />
