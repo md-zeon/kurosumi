@@ -4,6 +4,8 @@ import { useState, useEffect, type RefObject } from 'react';
 import { type Note, getAllNotes, searchNotes, deleteNote, togglePin, duplicateNote } from '@/lib/db';
 import NoteItem from './NoteItem';
 import SearchBar from './SearchBar';
+import { useToast } from './Toast';
+import { useConfirm } from './ConfirmDialog';
 
 type SortOption = 'updated-desc' | 'updated-asc' | 'created-desc' | 'created-asc' | 'title-asc' | 'title-desc';
 
@@ -41,6 +43,8 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('updated-desc');
   const [isLoading, setIsLoading] = useState(true);
+  const { addToast } = useToast();
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     loadNotes();
@@ -64,15 +68,27 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
   }
 
   async function handleDelete(id: number) {
-    if (confirm('Delete this note?')) {
+    const confirmed = await confirm({
+      title: 'Delete Note',
+      message: 'Are you sure you want to delete this note? This action cannot be undone.',
+      confirmText: 'Delete',
+      type: 'danger',
+    });
+    
+    if (confirmed) {
       await deleteNote(id);
+      if (selectedNoteId === id) {
+        onSelectNote(0);
+      }
       loadNotes();
+      addToast('Note deleted', 'success');
     }
   }
 
   async function handleTogglePin(id: number) {
     await togglePin(id);
     loadNotes();
+    addToast('Note pinned', 'success');
   }
 
   async function handleDuplicate(id: number) {
@@ -80,6 +96,7 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
     if (newId) {
       loadNotes();
       onSelectNote(newId);
+      addToast('Note duplicated', 'success');
     }
   }
 
