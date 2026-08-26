@@ -2,10 +2,43 @@
 
 interface MarkdownToolbarProps {
   onInsert: (before: string, after?: string) => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
-export default function MarkdownToolbar({ onInsert }: MarkdownToolbarProps) {
+export default function MarkdownToolbar({ onInsert, canUndo, canRedo, onUndo, onRedo }: MarkdownToolbarProps) {
   const buttons = [
+    {
+      label: 'Undo (Ctrl+Z)',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 7v6h6" />
+          <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6.69 3L3 13" />
+        </svg>
+      ),
+      action: onUndo || (() => {}),
+      disabled: !canUndo,
+    },
+    {
+      label: 'Redo (Ctrl+Shift+Z)',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 7v6h-6" />
+          <path d="M3 17a9 9 0 019-9 9 9 0 016.69 3L21 13" />
+        </svg>
+      ),
+      action: onRedo || (() => {}),
+      disabled: !canRedo,
+    },
+    {
+      label: 'Divider',
+      icon: <div className="w-px h-4 bg-[#1E1E2A]" />,
+      action: () => {},
+      disabled: false,
+      isDivider: true,
+    },
     {
       label: 'Bold',
       icon: (
@@ -153,16 +186,26 @@ export default function MarkdownToolbar({ onInsert }: MarkdownToolbarProps) {
 
   return (
     <div className="flex items-center gap-1 px-2 py-1 bg-[#12121A] border-b border-[#1E1E2A] overflow-x-auto">
-      {buttons.map((btn, i) => (
-        <button
-          key={i}
-          onClick={btn.action}
-          className="p-1.5 rounded hover:bg-[#2A2A3E] text-[#9B9B9B] hover:text-[#EFEFE6] transition-colors flex-shrink-0"
-          title={btn.label}
-        >
-          {btn.icon}
-        </button>
-      ))}
+      {buttons.map((btn, i) => {
+        if ('isDivider' in btn && btn.isDivider) {
+          return <div key={i} className="w-px h-4 bg-[#1E1E2A] mx-1" />;
+        }
+        return (
+          <button
+            key={i}
+            onClick={btn.action}
+            disabled={'disabled' in btn ? btn.disabled : false}
+            className={`p-1.5 rounded transition-colors flex-shrink-0 ${
+              'disabled' in btn && btn.disabled
+                ? 'text-[#4A4A5A] cursor-not-allowed'
+                : 'hover:bg-[#2A2A3E] text-[#9B9B9B] hover:text-[#EFEFE6]'
+            }`}
+            title={btn.label}
+          >
+            {btn.icon}
+          </button>
+        );
+      })}
     </div>
   );
 }

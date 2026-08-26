@@ -39,8 +39,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+N` | New note |
+| `Alt+N` | New note |
 | `Ctrl+S` | Save note |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Shift+Z` | Redo |
 | `Ctrl+Shift+F` | Focus search |
 | `F11` | Toggle fullscreen |
 | `?` | Show shortcuts |

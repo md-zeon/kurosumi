@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import MarkdownToolbar from './MarkdownToolbar';
 
 interface MarkdownEditorProps {
@@ -11,6 +11,61 @@ interface MarkdownEditorProps {
 
 export default function MarkdownEditor({ content, onChange, onSave }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [history, setHistory] = useState<string[]>([content]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const isUndoRedo = useRef(false);
+
+  // Track content changes for undo/redo
+  useEffect(() => {
+    if (isUndoRedo.current) {
+      isUndoRedo.current = false;
+      return;
+    }
+
+    // Add to history if content changed
+    if (content !== history[historyIndex]) {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(content);
+      // Limit history size to 100
+      if (newHistory.length > 100) {
+        newHistory.shift();
+      }
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+  }, [content]);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      isUndoRedo.current = true;
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      onChange(history[newIndex]);
+
+      // Restore cursor position
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [history, historyIndex, onChange]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      isUndoRedo.current = true;
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      onChange(history[newIndex]);
+
+      // Restore cursor position
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [history, historyIndex, onChange]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -52,6 +107,37 @@ export default function MarkdownEditor({ content, onChange, onSave }: MarkdownEd
         onSave();
       }
 
+      // Ctrl+Z: Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+
+      // Ctrl+Shift+Z or Ctrl+Y: Redo
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') ||
+          ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        e.preventDefault();
+        handleRedo();
+      }
+
+      // Ctrl+B: Bold
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        handleInsert('**', '**');
+      }
+
+      // Ctrl+I: Italic
+      if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+        e.preventDefault();
+        handleInsert('*', '*');
+      }
+
+      // Ctrl+K: Link
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        handleInsert('[', '](url)');
+      }
+
       // Tab to insert spaces
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -69,7 +155,7 @@ export default function MarkdownEditor({ content, onChange, onSave }: MarkdownEd
         }, 0);
       }
     },
-    [onChange, onSave]
+    [onChange, onSave, handleUndo, handleRedo]
   );
 
   // Auto-resize textarea
@@ -80,9 +166,24 @@ export default function MarkdownEditor({ content, onChange, onSave }: MarkdownEd
     }
   }, [content]);
 
+  // Expose undo/redo for toolbar
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.setAttribute('data-can-undo', historyIndex > 0 ? 'true' : 'false');
+      textarea.setAttribute('data-can-redo', historyIndex < history.length - 1 ? 'true' : 'false');
+    }
+  }, [historyIndex, history.length]);
+
   return (
     <div className="flex-1 h-full flex flex-col bg-[#1A1A1E]">
-      <MarkdownToolbar onInsert={handleInsert} />
+      <MarkdownToolbar 
+        onInsert={handleInsert}
+        canUndo={historyIndex > 0}
+        canRedo={historyIndex < history.length - 1}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+      />
       <div className="flex-1 overflow-auto">
         <textarea
           ref={textareaRef}

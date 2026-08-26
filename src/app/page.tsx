@@ -160,8 +160,8 @@ export default function Home() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
-      // Ctrl+N: New note (works everywhere)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      // Alt+N: New note (works everywhere)
+      if (e.altKey && e.key === 'n') {
         e.preventDefault();
         handleNewNote();
         return;
@@ -329,7 +329,7 @@ export default function Home() {
                   New Note
                 </button>
                 <p className="text-xs text-[#9B9B9B] mt-4 hidden md:block">
-                  Press <kbd className="px-1.5 py-0.5 font-mono bg-[#12121A] border border-[#1E1E2A] rounded">Ctrl+N</kbd> to create a note
+                  Press <kbd className="px-1.5 py-0.5 font-mono bg-[#12121A] border border-[#1E1E2A] rounded">Alt+N</kbd> to create a note
                 </p>
               </div>
             </div>

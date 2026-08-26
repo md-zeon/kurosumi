@@ -9,7 +9,7 @@ interface ShortcutsModalProps {
 
 const shortcuts = [
   { category: 'General', items: [
-    { keys: ['Ctrl', 'N'], description: 'New note' },
+    { keys: ['Alt', 'N'], description: 'New note' },
     { keys: ['Ctrl', 'S'], description: 'Save note' },
     { keys: ['F11'], description: 'Toggle fullscreen' },
     { keys: ['?'], description: 'Show shortcuts' },
@@ -24,6 +24,11 @@ const shortcuts = [
   ]},
   { category: 'Editor', items: [
     { keys: ['Tab'], description: 'Insert spaces' },
+    { keys: ['Ctrl', 'Z'], description: 'Undo' },
+    { keys: ['Ctrl', 'Shift', 'Z'], description: 'Redo' },
+    { keys: ['Ctrl', 'B'], description: 'Bold' },
+    { keys: ['Ctrl', 'I'], description: 'Italic' },
+    { keys: ['Ctrl', 'K'], description: 'Insert link' },
     { keys: ['Esc'], description: 'Close sidebar/modal' },
   ]},
 ];
