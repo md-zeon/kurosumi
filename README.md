@@ -37,15 +37,28 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Keyboard Shortcuts
 
+### General
 | Shortcut | Action |
 |----------|--------|
 | `Alt+N` | New note |
 | `Ctrl+S` | Save note |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Shift+Z` | Redo |
-| `Ctrl+Shift+F` | Focus search |
 | `F11` | Toggle fullscreen |
 | `?` | Show shortcuts |
+
+### Editor
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Z` | Undo |
+| `Ctrl+Shift+Z` | Redo |
+| `Ctrl+B` | Bold |
+| `Ctrl+I` | Italic |
+| `Ctrl+K` | Insert link |
+| `Tab` | Insert spaces |
+
+### Navigation
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Shift+F` | Focus search |
 | `1` | Editor view |
 | `2` | Split view |
 | `3` | Preview view |

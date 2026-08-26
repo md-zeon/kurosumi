@@ -5,12 +5,31 @@ All notable changes to Kurosumi will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-26
+
+### Added
+- Undo/redo support with history (Ctrl+Z, Ctrl+Shift+Z)
+- Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+K (Link) shortcuts in editor
+- PWA icons (72, 96, 128, 144, 152, 192, 384, 512)
+- SEO metadata (Open Graph, Twitter cards, keywords)
+- robots.txt for search engines
+- sitemap.xml for crawling
+- Favicon (SVG)
+
+### Fixed
+- New note shortcut changed to Alt+N (avoided browser Ctrl+N conflict)
+- Keyboard shortcuts now work while typing in editor
+- Removed unimplemented shortcuts from modal
+- Code block copy button works with React (event delegation)
+
+### Changed
+- Updated all documentation
+
 ## [0.2.0] - 2026-08-26
 
 ### Added
 - Mobile responsive design with drawer sidebar
 - localStorage persistence for selected note and view mode
-- Code block copy button with visual feedback
 - Toast notification system
 - Custom confirmation dialogs
 - Keyboard shortcuts modal (? to open)
@@ -29,7 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared export styles (exportStyles.ts)
 
 ### Fixed
-- Code block copy button now works with React (event delegation)
 - Sidebar closes on note selection (mobile)
 - View mode persists across reloads
 
@@ -50,7 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - markdown-it with GFM support
 - highlight.js for syntax highlighting
 - Auto-save with 500ms debounce
-- Keyboard shortcuts (Ctrl+N, Ctrl+S, Ctrl+Shift+F, F11)
 - View mode toggle (editor/split/preview)
 - PWA support (manifest.json, service worker)
 - ServiceWorkerRegistration component

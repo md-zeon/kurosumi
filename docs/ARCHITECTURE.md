@@ -78,7 +78,10 @@ src/
 │   └── exportStyles.ts     # Export styling
 └── public/
     ├── manifest.json       # PWA manifest
-    └── sw.js              # Service worker
+    ├── sw.js              # Service worker
+    ├── favicon.svg        # Favicon
+    ├── robots.txt         # Search engine rules
+    └── icons/             # PWA icons (72-512px)
 ```
 
 ## Data Flow
@@ -145,6 +148,11 @@ interface Note {
 - `viewMode` — Editor/split/preview mode
 - `lastSaved` — Last save timestamp
 - `showShortcuts` — Shortcuts modal visibility
+- `sidebarOpen` — Mobile sidebar visibility
+
+### Editor State
+- `history` — Array of content states for undo/redo
+- `historyIndex` — Current position in history
 
 ### Persisted State (localStorage)
 - `kurosumi_selected_note` — Last selected note ID
