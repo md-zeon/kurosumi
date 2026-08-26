@@ -158,15 +158,32 @@ export default function Home() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in input/textarea
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
+      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
-      // Ctrl+N: New note
+      // Ctrl+N: New note (works everywhere)
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
         handleNewNote();
+        return;
+      }
+
+      // Ctrl+S: Save note (works everywhere)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+
+      // F11: Toggle fullscreen (works everywhere)
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
+
+      // Don't trigger remaining shortcuts when typing in input/textarea
+      if (isInput) {
+        return;
       }
 
       // Ctrl+Shift+F: Focus search
@@ -176,12 +193,6 @@ export default function Home() {
           setSidebarOpen(true);
         }
         setTimeout(() => searchInputRef.current?.focus(), 100);
-      }
-
-      // F11: Toggle fullscreen
-      if (e.key === 'F11') {
-        e.preventDefault();
-        toggleFullscreen();
       }
 
       // ?: Show shortcuts
@@ -211,7 +222,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNewNote, isFullscreen, showShortcuts, sidebarOpen, isMobile]);
+  }, [handleNewNote, handleSave, isFullscreen, showShortcuts, sidebarOpen, isMobile]);
 
   // Toggle fullscreen
   const toggleFullscreen = useCallback(() => {

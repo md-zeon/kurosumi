@@ -16,19 +16,15 @@ const shortcuts = [
   ]},
   { category: 'Navigation', items: [
     { keys: ['Ctrl', 'Shift', 'F'], description: 'Focus search' },
-    { keys: ['↑', '↓'], description: 'Navigate notes' },
-    { keys: ['Enter'], description: 'Open selected note' },
-  ]},
-  { category: 'Editor', items: [
-    { keys: ['Tab'], description: 'Insert spaces' },
-    { keys: ['Ctrl', 'B'], description: 'Bold' },
-    { keys: ['Ctrl', 'I'], description: 'Italic' },
-    { keys: ['Ctrl', 'K'], description: 'Insert link' },
   ]},
   { category: 'View', items: [
     { keys: ['1'], description: 'Editor only' },
     { keys: ['2'], description: 'Split view' },
     { keys: ['3'], description: 'Preview only' },
+  ]},
+  { category: 'Editor', items: [
+    { keys: ['Tab'], description: 'Insert spaces' },
+    { keys: ['Esc'], description: 'Close sidebar/modal' },
   ]},
 ];
 
