@@ -1,23 +1,24 @@
 # Architecture
 
-This document describes the technical architecture of Kurosumi.
+Technical architecture of Kurosumi.
 
 ## Overview
 
-Kurosumi is a local-first, offline-capable Markdown note-taking application built with Next.js. It stores all data in the browser's IndexedDB, requiring no backend or accounts.
+Kurosumi is a local-first, offline-capable Markdown note-taking application built with Next.js. All data is stored in the browser's IndexedDB — no backend or accounts required.
 
 ## Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| Framework | Next.js 14 (App Router) | React framework with SSR/SSG |
-| Language | TypeScript | Type safety and better DX |
-| Styling | Tailwind CSS | Utility-first CSS framework |
-| Components | shadcn/ui | Accessible UI components |
-| Markdown | markdown-it | GFM-compatible Markdown parsing |
-| Syntax Highlight | highlight.js | Code block syntax highlighting |
-| Storage | Dexie.js | IndexedDB wrapper for note storage |
-| PWA | Service Worker | Offline support and installability |
+| Framework | Next.js 16 (App Router) | React framework with SSR/SSG |
+| Language | TypeScript | Type safety |
+| Styling | Tailwind CSS | Utility-first CSS |
+| Markdown | markdown-it | GFM-compatible parsing |
+| Syntax Highlight | highlight.js | Code block highlighting |
+| Storage | Dexie.js | IndexedDB wrapper |
+| PWA | Service Worker | Offline support |
+| PDF Export | html2pdf.js | PDF generation |
+| DOCX Export | docx + file-saver | Word document generation |
 
 ## Architecture Diagram
 
@@ -37,13 +38,14 @@ Kurosumi is a local-first, offline-capable Markdown note-taking application buil
 │  │  • Note CRUD operations                       │    │
 │  │  • Markdown rendering                         │    │
 │  │  • Search and filtering                       │    │
-│  │  • Auto-save logic                            │    │
+│  │  • Auto-save with debounce                    │    │
+│  │  • Export/Import (MD, JSON, HTML, PDF, DOCX) │    │
 │  └───────────────────────────────────────────────┘    │
 │                                                         │
 │  ┌───────────────────────────────────────────────┐    │
 │  │              Storage Layer                    │    │
-│  │  • IndexedDB (notes, folders, settings)      │    │
-│  │  • localStorage (UI preferences)              │    │
+│  │  • IndexedDB (notes)                          │    │
+│  │  • localStorage (UI preferences, state)       │    │
 │  │  • Service Worker Cache (app shell)           │    │
 │  └───────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────┘
@@ -53,46 +55,49 @@ Kurosumi is a local-first, offline-capable Markdown note-taking application buil
 
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── layout.tsx          # Root layout with providers
-│   ├── page.tsx            # Main notes page
-│   └── globals.css         # Global styles and CSS variables
+├── app/                    # Next.js App Router
+│   ├── layout.tsx          # Root layout with fonts
+│   ├── page.tsx            # Main app page
+│   └── globals.css         # Theme and styles
 ├── components/
 │   ├── NoteSidebar.tsx     # Sidebar with note list
-│   ├── NoteItem.tsx        # Individual note in sidebar
-│   ├── MarkdownEditor.tsx  # Textarea for editing notes
-│   ├── MarkdownPreview.tsx # Rendered Markdown output
-│   ├── NoteHeader.tsx      # Header with title and actions
-│   ├── SearchBar.tsx       # Search/filter notes
-│   ├── SplitViewToggle.tsx # Toggle editor/preview/split
-│   ├── CodeBlock.tsx       # Enhanced code blocks
-│   └── ui/                 # shadcn/ui components
+│   ├── NoteItem.tsx        # Individual note item
+│   ├── NoteHeader.tsx      # Header with title/actions
+│   ├── MarkdownEditor.tsx  # Textarea editor
+│   ├── MarkdownPreview.tsx # Rendered output
+│   ├── MarkdownToolbar.tsx # Formatting toolbar
+│   ├── SearchBar.tsx       # Search input
+│   ├── Toast.tsx           # Toast notifications
+│   ├── ConfirmDialog.tsx   # Confirmation dialogs
+│   ├── ShortcutsModal.tsx  # Keyboard shortcuts help
+│   ├── Providers.tsx       # Context providers
+│   └── ServiceWorkerRegistration.tsx
 ├── lib/
-│   ├── db.ts               # Dexie database setup
-│   ├── types.ts            # TypeScript type definitions
-│   └── markdown.ts         # markdown-it configuration
+│   ├── db.ts               # Dexie database
+│   ├── markdown.ts         # markdown-it config
+│   └── exportStyles.ts     # Export styling
 └── public/
     ├── manifest.json       # PWA manifest
-    └── icons/              # App icons
+    └── sw.js              # Service worker
 ```
 
 ## Data Flow
 
-### Creating a Note
+### Note Selection & Persistence
 
 ```
-User clicks "New Note"
+User selects note
     ↓
-React state updated with empty note
+State updated (selectedNoteId)
     ↓
-Note saved to IndexedDB via Dexie.js
+localStorage updated
     ↓
-UI updates to show new note in sidebar
+Note loaded from IndexedDB
     ↓
-Editor focuses on new note
+Editor/Preview updated
 ```
 
-### Editing a Note
+### Auto-Save Flow
 
 ```
 User types in editor
@@ -101,21 +106,21 @@ Debounced save (500ms)
     ↓
 Note updated in IndexedDB
     ↓
-Preview updates in real-time
+UI updates (last saved timestamp)
     ↓
-"Last saved" timestamp updates
+Sidebar refresh triggers
 ```
 
-### Searching Notes
+### Search Flow
 
 ```
 User types in search bar
     ↓
 Dexie.js queries IndexedDB
     ↓
-Results filtered by title and content
+Results filtered by title/content
     ↓
-Sidebar updates with matching notes
+Sidebar updates with matches
 ```
 
 ## Database Schema
@@ -134,33 +139,47 @@ interface Note {
 
 ## State Management
 
-Kurosumi uses React's built-in state management:
+### Local State (React)
+- `selectedNoteId` — Currently selected note
+- `currentNote` — Loaded note data
+- `viewMode` — Editor/split/preview mode
+- `lastSaved` — Last save timestamp
+- `showShortcuts` — Shortcuts modal visibility
 
-- **Component State**: Local state for UI interactions
-- **Context API**: For shared state (current note, theme)
-- **Dexie.js**: For persistent storage and real-time queries
+### Persisted State (localStorage)
+- `kurosumi_selected_note` — Last selected note ID
+- `kurosumi_view_mode` — Last view mode
 
-## Performance Considerations
+### Persistent Storage (IndexedDB via Dexie)
+- Notes with full CRUD operations
+- Real-time search queries
+- Sorting and filtering
 
-1. **Debounced Saves**: Auto-save with 500ms debounce to prevent excessive writes
-2. **Virtual Scrolling**: For large note lists (V2)
-3. **Lazy Loading**: Components loaded on demand
-4. **Service Worker**: Caches app shell for instant loads
+## Responsive Design
 
-## Browser Support
+### Breakpoints
+- `sm:` (640px) — Hide some status info
+- `md:` (768px) — Full desktop layout
+- Mobile-first approach
 
-| Browser | Support |
-|---------|---------|
-| Chrome  | Full    |
-| Firefox | Full    |
-| Safari  | Full*   |
-| Edge    | Full    |
+### Mobile Features
+- Sidebar as drawer with backdrop
+- Hamburger menu to open sidebar
+- Single-view mode (no split)
+- Compact status bar
 
-*Safari requires "Add to Home Screen" for persistent storage.
+## Performance
 
-## Security Model
+1. **Debounced Saves** — 500ms debounce prevents excessive writes
+2. **Memoized Calculations** — Word/char counts memoized
+3. **Lazy Loading** — Components load on demand
+4. **Service Worker** — Caches app shell for instant loads
+5. **Optimized Builds** — Next.js tree-shaking and code splitting
 
-- **Local-first**: Data never leaves the device
-- **No accounts**: No authentication required
-- **Same-Origin Policy**: IndexedDB is origin-scoped
-- **No tracking**: No analytics or telemetry
+## Security
+
+- **Local-first** — Data never leaves the device
+- **No accounts** — No authentication required
+- **Same-Origin Policy** — IndexedDB is origin-scoped
+- **No tracking** — No analytics or telemetry
+- **XSS Protection** — markdown-it escapes HTML by default

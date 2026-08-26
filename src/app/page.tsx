@@ -352,8 +352,8 @@ export default function Home() {
             <div className="flex items-center gap-2 md:gap-4">
               <button 
                 onClick={() => setShowShortcuts(true)}
-                className="hover:text-[#EFEFE6] transition-colors hidden md:block"
-                title="Keyboard shortcuts"
+                className="hover:text-[#EFEFE6] transition-colors"
+                title="Keyboard shortcuts (?)"
               >
                 <kbd className="px-1 py-0.5 font-mono bg-[#1A1A1E] border border-[#1E1E2A] rounded">?</kbd>
               </button>

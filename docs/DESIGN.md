@@ -1,6 +1,6 @@
 # Design System
 
-This document describes the UI/UX design decisions for Kurosumi.
+UI/UX design decisions for Kurosumi.
 
 ## Design Philosophy
 
@@ -27,9 +27,9 @@ Kurosumi follows a **minimalist, distraction-free** design philosophy:
 | Text | `#EFEFE6` | Primary text |
 | Text Muted | `#9B9B9B` | Secondary text |
 | Border | `#1E1E2A` | Subtle borders |
-| Success | `#4ADE80` | Save confirmations |
+| Success | `#22C55E` | Copy feedback, success toasts |
 | Warning | `#FBBF24` | Data persistence warnings |
-| Error | `#EF4444` | Delete actions |
+| Error | `#EF4444` | Delete actions, error toasts |
 
 ### Typography
 
@@ -45,7 +45,7 @@ Kurosumi follows a **minimalist, distraction-free** design philosophy:
 
 ## Layout
 
-### Desktop (1024px+)
+### Desktop (768px+)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -63,7 +63,7 @@ Kurosumi follows a **minimalist, distraction-free** design philosophy:
 │          │                                              │
 │          │  Word count: 142 | Last saved: 2m ago       │
 ├──────────┴──────────────────────────────────────────────┤
-│  © 2026 Kurosumi                                        │
+│  Markdown | GFM                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -84,35 +84,64 @@ Kurosumi follows a **minimalist, distraction-free** design philosophy:
 │                         │
 │  142 words | 2m ago     │
 └─────────────────────────┘
+
+Sidebar (drawer):
+┌─────────────────────────┐
+│  Kurosumi    +     ✕    │
+├─────────────────────────┤
+│  [Search notes...]      │
+├─────────────────────────┤
+│  Sort: Last modified ▼  │
+├─────────────────────────┤
+│  📌 Note 1              │
+│  📝 Note 2              │
+│  📝 Note 3              │
+└─────────────────────────┘
 ```
 
 ## Components
 
 ### Sidebar
 
-- **Width**: 280px (desktop), full-width drawer (mobile)
+- **Width**: 256px (desktop), full-width drawer (mobile)
 - **Note item height**: 64px
 - **Hover state**: Subtle background change
 - **Active state**: Left accent border
 - **Empty state**: Illustration + "Create your first note"
+- **Mobile**: Slides in from left with backdrop overlay
 
 ### Editor
 
 - **Font**: JetBrains Mono (monospace)
 - **Line height**: 1.6
-- **Placeholder**: "Start writing..."
+- **Placeholder**: "Start writing... (Markdown supported)"
 - **Focus ring**: None (distraction-free)
 - **Tab size**: 2 spaces
+- **Toolbar**: Formatting buttons (bold, italic, code, etc.)
 
 ### Preview
 
 - **Font**: Inter (sans-serif)
-- **Max width**: 720px (centered)
 - **Code blocks**: highlight.js with dark theme
+- **Copy button**: Click to copy code with visual feedback
 - **Tables**: Striped rows with subtle borders
 - **Images**: Max 100% width, rounded corners
 
-### Buttons
+### Header
+
+- **Height**: 48px
+- **Title**: Click to edit
+- **View toggle**: Editor/Split/Preview buttons
+- **Export menu**: Dropdown with export/import options
+- **Mobile**: Hamburger menu for sidebar
+
+### Status Bar
+
+- **Height**: 24px
+- **Left**: Word count, line count, char count
+- **Right**: Shortcuts hint, Markdown, GFM
+
+## Buttons
 
 | Type | Style |
 |------|-------|
@@ -121,15 +150,30 @@ Kurosumi follows a **minimalist, distraction-free** design philosophy:
 | Ghost | Transparent, text color |
 | Danger | Red background, white text |
 
+## Modals
+
+- **Backdrop**: Dark overlay with blur
+- **Content**: Centered, max-width 400px
+- **Animation**: Fade in/out (200ms)
+- **Keyboard**: Esc to close
+
+## Toast Notifications
+
+- **Position**: Bottom-right
+- **Animation**: Slide up (300ms)
+- **Auto-dismiss**: 3 seconds
+- **Types**: Success (green), Error (red)
+
 ## Animations
 
 | Element | Animation | Duration |
 |---------|-----------|----------|
-| Sidebar slide | `transform: translateX` | 200ms |
+| Sidebar slide | `transform: translateX` | 300ms |
 | Button hover | `background-color` | 150ms |
 | Note active | `border-left` | 150ms |
 | Toast notification | `transform: translateY` | 300ms |
 | Modal backdrop | `opacity` | 200ms |
+| Copy button | `background-color`, `transform` | 150ms |
 
 ## Accessibility
 
@@ -144,5 +188,4 @@ Kurosumi follows a **minimalist, distraction-free** design philosophy:
 | Breakpoint | Width | Layout |
 |------------|-------|--------|
 | Mobile | < 768px | Single column, drawer sidebar |
-| Tablet | 768-1024px | Collapsible sidebar |
-| Desktop | > 1024px | Three-column layout |
+| Desktop | ≥ 768px | Sidebar + editor/preview |
