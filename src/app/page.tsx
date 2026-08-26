@@ -9,10 +9,28 @@ import MarkdownPreview from '@/components/MarkdownPreview';
 import ShortcutsModal from '@/components/ShortcutsModal';
 import { useToast } from '@/components/Toast';
 
+const STORAGE_KEY_SELECTED_NOTE = 'kurosumi_selected_note';
+const STORAGE_KEY_VIEW_MODE = 'kurosumi_view_mode';
+
+function getStoredValue<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return defaultValue;
+    return JSON.parse(stored);
+  } catch {
+    return defaultValue;
+  }
+}
+
 export default function Home() {
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(() => 
+    getStoredValue<number | null>(STORAGE_KEY_SELECTED_NOTE, null)
+  );
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
-  const [viewMode, setViewMode] = useState<'editor' | 'split' | 'preview'>('split');
+  const [viewMode, setViewMode] = useState<'editor' | 'split' | 'preview'>(() => 
+    getStoredValue<'editor' | 'split' | 'preview'>(STORAGE_KEY_VIEW_MODE, 'split')
+  );
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -22,6 +40,16 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
+
+  // Persist selected note ID to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_SELECTED_NOTE, JSON.stringify(selectedNoteId));
+  }, [selectedNoteId]);
+
+  // Persist view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_VIEW_MODE, JSON.stringify(viewMode));
+  }, [viewMode]);
 
   // Detect mobile
   useEffect(() => {
