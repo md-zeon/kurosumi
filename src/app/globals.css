@@ -92,6 +92,15 @@ body {
   color: #EFEFE6;
 }
 
+.copy-btn.copied {
+  background: #22C55E;
+  color: white;
+}
+
+.copy-btn:active {
+  transform: scale(0.95);
+}
+
 .hljs {
   background: #1A1A1E !important;
   border-radius: 0 0 0.5rem 0.5rem;

@@ -44,10 +44,17 @@ md.renderer.rules.fence = function (tokens: Token[], idx: number) {
     highlighted = md.utils.escapeHtml(token.content);
   }
 
-  return `<div class="code-block">
+  // Escape the raw content for clipboard
+  const rawContent = token.content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  return `<div class="code-block" data-code="${rawContent}">
     <div class="code-header">
       <span class="code-lang">${langName || 'text'}</span>
-      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.parentElement.nextElementSibling.textContent)">Copy</button>
+      <button class="copy-btn" data-copy="true">Copy</button>
     </div>
     <pre class="hljs"><code class="language-${langName}">${highlighted}</code></pre>
   </div>`;
