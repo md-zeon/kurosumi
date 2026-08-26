@@ -18,8 +18,32 @@ export default function Home() {
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setSidebarOpen(false);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Auto-switch to editor view on mobile
+  useEffect(() => {
+    if (isMobile && viewMode === 'split') {
+      setViewMode('editor');
+    }
+  }, [isMobile, viewMode]);
 
   // Load note when selected
   useEffect(() => {
@@ -28,12 +52,16 @@ export default function Home() {
         if (note) {
           setCurrentNote(note);
           setLastSaved(note.updatedAt);
+          // Close sidebar on mobile after selection
+          if (isMobile) {
+            setSidebarOpen(false);
+          }
         }
       });
     } else {
       setCurrentNote(null);
     }
-  }, [selectedNoteId]);
+  }, [selectedNoteId, isMobile]);
 
   // Create new note
   const handleNewNote = useCallback(async () => {
@@ -116,7 +144,10 @@ export default function Home() {
       // Ctrl+Shift+F: Focus search
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
         e.preventDefault();
-        searchInputRef.current?.focus();
+        if (isMobile) {
+          setSidebarOpen(true);
+        }
+        setTimeout(() => searchInputRef.current?.focus(), 100);
       }
 
       // F11: Toggle fullscreen
@@ -131,24 +162,28 @@ export default function Home() {
         setShowShortcuts(true);
       }
 
-      // Escape: Close modals or exit fullscreen
+      // Escape: Close modals, sidebar, or exit fullscreen
       if (e.key === 'Escape') {
         if (showShortcuts) {
           setShowShortcuts(false);
+        } else if (sidebarOpen) {
+          setSidebarOpen(false);
         } else if (isFullscreen) {
           setIsFullscreen(false);
         }
       }
 
-      // 1, 2, 3: View modes
-      if (e.key === '1') setViewMode('editor');
-      if (e.key === '2') setViewMode('split');
-      if (e.key === '3') setViewMode('preview');
+      // 1, 2, 3: View modes (only on desktop)
+      if (!isMobile) {
+        if (e.key === '1') setViewMode('editor');
+        if (e.key === '2') setViewMode('split');
+        if (e.key === '3') setViewMode('preview');
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNewNote, isFullscreen, showShortcuts]);
+  }, [handleNewNote, isFullscreen, showShortcuts, sidebarOpen, isMobile]);
 
   // Toggle fullscreen
   const toggleFullscreen = useCallback(() => {
@@ -159,6 +194,11 @@ export default function Home() {
       document.exitFullscreen();
       setIsFullscreen(false);
     }
+  }, []);
+
+  // Toggle sidebar
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => !prev);
   }, []);
 
   // Word count and character count
@@ -182,14 +222,29 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-[#0A090F] overflow-hidden">
+      {/* Mobile sidebar backdrop */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <NoteSidebar
-        selectedNoteId={selectedNoteId}
-        onSelectNote={setSelectedNoteId}
-        onNewNote={handleNewNote}
-        refreshTrigger={refreshTrigger}
-        searchInputRef={searchInputRef}
-      />
+      <div className={`
+        ${isMobile ? 'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300' : 'relative'}
+        ${isMobile && !sidebarOpen ? '-translate-x-full' : 'translate-x-0'}
+      `}>
+        <NoteSidebar
+          selectedNoteId={selectedNoteId}
+          onSelectNote={setSelectedNoteId}
+          onNewNote={handleNewNote}
+          refreshTrigger={refreshTrigger}
+          searchInputRef={searchInputRef}
+          isMobile={isMobile}
+          onClose={() => setSidebarOpen(false)}
+        />
+      </div>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -203,6 +258,8 @@ export default function Home() {
           onNoteCreated={() => setRefreshTrigger((prev) => prev + 1)}
           wordCount={wordCount}
           lastSaved={lastSaved}
+          isMobile={isMobile}
+          onToggleSidebar={toggleSidebar}
         />
 
         {/* Editor/Preview area */}
@@ -232,7 +289,7 @@ export default function Home() {
                   </svg>
                   New Note
                 </button>
-                <p className="text-xs text-[#9B9B9B] mt-4">
+                <p className="text-xs text-[#9B9B9B] mt-4 hidden md:block">
                   Press <kbd className="px-1.5 py-0.5 font-mono bg-[#12121A] border border-[#1E1E2A] rounded">Ctrl+N</kbd> to create a note
                 </p>
               </div>
@@ -247,7 +304,7 @@ export default function Home() {
                 />
               )}
               {viewMode === 'split' && (
-                <div className="w-px bg-[#1E1E2A]" />
+                <div className="w-px bg-[#1E1E2A] hidden md:block" />
               )}
               {(viewMode === 'preview' || viewMode === 'split') && (
                 <MarkdownPreview content={currentNote.content} />
@@ -258,21 +315,21 @@ export default function Home() {
 
         {/* Status bar */}
         {currentNote && (
-          <div className="h-6 border-t border-[#1E1E2A] bg-[#12121A] flex items-center justify-between px-4 text-xs text-[#9B9B9B]">
-            <div className="flex items-center gap-4">
-              <span>{lineCount} lines</span>
+          <div className="h-6 border-t border-[#1E1E2A] bg-[#12121A] flex items-center justify-between px-2 md:px-4 text-xs text-[#9B9B9B]">
+            <div className="flex items-center gap-2 md:gap-4">
+              <span className="hidden sm:inline">{lineCount} lines</span>
               <span>{wordCount} words</span>
-              <span>{charCount} chars</span>
+              <span className="hidden sm:inline">{charCount} chars</span>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <button 
                 onClick={() => setShowShortcuts(true)}
-                className="hover:text-[#EFEFE6] transition-colors"
+                className="hover:text-[#EFEFE6] transition-colors hidden md:block"
                 title="Keyboard shortcuts"
               >
                 <kbd className="px-1 py-0.5 font-mono bg-[#1A1A1E] border border-[#1E1E2A] rounded">?</kbd>
               </button>
-              <span>Markdown</span>
+              <span className="hidden sm:inline">Markdown</span>
               <span>GFM</span>
             </div>
           </div>

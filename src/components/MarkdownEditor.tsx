@@ -90,7 +90,7 @@ export default function MarkdownEditor({ content, onChange, onSave }: MarkdownEd
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="Start writing... (Markdown supported)"
-          className="w-full h-full p-6 bg-transparent text-[#EFEFE6] font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-[#9B9B9B]"
+          className="w-full h-full p-3 md:p-6 bg-transparent text-[#EFEFE6] font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-[#9B9B9B]"
           spellCheck={false}
         />
       </div>

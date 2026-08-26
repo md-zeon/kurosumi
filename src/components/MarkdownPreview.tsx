@@ -73,7 +73,7 @@ export default function MarkdownPreview({ content }: MarkdownPreviewProps) {
   }, [handleCopy]);
 
   return (
-    <div className="flex-1 h-full overflow-auto bg-[#0F0F14] p-6">
+    <div className="flex-1 h-full overflow-auto bg-[#0F0F14] p-3 md:p-6">
       <div
         ref={containerRef}
         className="markdown-body"

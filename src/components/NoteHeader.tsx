@@ -15,6 +15,8 @@ interface NoteHeaderProps {
   onNoteCreated?: () => void;
   wordCount: number;
   lastSaved: Date | null;
+  isMobile?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export default function NoteHeader({
@@ -26,6 +28,8 @@ export default function NoteHeader({
   onNoteCreated,
   wordCount,
   lastSaved,
+  isMobile,
+  onToggleSidebar,
 }: NoteHeaderProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -569,8 +573,19 @@ export default function NoteHeader({
   };
 
   return (
-    <header className="h-12 border-b border-[#1E1E2A] bg-[#12121A] flex items-center justify-between px-4">
-      <div className="flex items-center gap-4 flex-1 min-w-0">
+    <header className="h-12 border-b border-[#1E1E2A] bg-[#12121A] flex items-center justify-between px-2 md:px-4">
+      <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+        {isMobile && (
+          <button
+            onClick={onToggleSidebar}
+            className="p-1.5 rounded hover:bg-[#1A1A1E] text-[#9B9B9B] hover:text-[#EFEFE6] transition-colors"
+            title="Open sidebar"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+          </button>
+        )}
         {note ? (
           isEditingTitle ? (
             <input
@@ -582,7 +597,7 @@ export default function NoteHeader({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') setIsEditingTitle(false);
               }}
-              className="bg-transparent text-[#EFEFE6] font-medium focus:outline-none border-b border-[#5542FF]"
+              className="bg-transparent text-[#EFEFE6] font-medium focus:outline-none border-b border-[#5542FF] max-w-[200px] md:max-w-none"
             />
           ) : (
             <h2
@@ -599,9 +614,12 @@ export default function NoteHeader({
       </div>
 
       {note && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[#9B9B9B] mr-2">
+        <div className="flex items-center gap-1 md:gap-2">
+          <span className="text-xs text-[#9B9B9B] mr-1 md:mr-2 hidden sm:inline">
             {wordCount} words • {formatLastSaved(lastSaved)}
+          </span>
+          <span className="text-xs text-[#9B9B9B] mr-1 md:mr-2 sm:hidden">
+            {formatLastSaved(lastSaved)}
           </span>
 
           {/* View mode toggle */}
@@ -619,7 +637,7 @@ export default function NoteHeader({
             </button>
             <button
               onClick={() => onViewModeChange('split')}
-              className={`p-1.5 rounded ${
+              className={`p-1.5 rounded hidden md:flex ${
                 viewMode === 'split' ? 'bg-[#5542FF] text-white' : 'text-[#9B9B9B] hover:text-[#EFEFE6]'
               }`}
               title="Split view"

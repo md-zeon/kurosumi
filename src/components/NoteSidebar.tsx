@@ -15,6 +15,8 @@ interface NoteSidebarProps {
   onNewNote: () => void;
   refreshTrigger?: number;
   searchInputRef?: RefObject<HTMLInputElement | null>;
+  isMobile?: boolean;
+  onClose?: () => void;
 }
 
 function sortNotes(notes: Note[], sortBy: SortOption): Note[] {
@@ -38,7 +40,7 @@ function sortNotes(notes: Note[], sortBy: SortOption): Note[] {
   }
 }
 
-export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, refreshTrigger, searchInputRef }: NoteSidebarProps) {
+export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, refreshTrigger, searchInputRef, isMobile, onClose }: NoteSidebarProps) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('updated-desc');
@@ -120,15 +122,28 @@ export default function NoteSidebar({ selectedNoteId, onSelectNote, onNewNote, r
       <div className="p-4 border-b border-[#1E1E2A]">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-semibold text-[#EFEFE6]">Kurosumi</h1>
-          <button
-            onClick={onNewNote}
-            className="p-2 rounded-lg bg-[#5542FF] hover:bg-[#7B6FFF] text-white transition-colors"
-            title="New note (Ctrl+N)"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onNewNote}
+              className="p-2 rounded-lg bg-[#5542FF] hover:bg-[#7B6FFF] text-white transition-colors"
+              title="New note (Ctrl+N)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+            {isMobile && (
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg hover:bg-[#1A1A1E] text-[#9B9B9B] hover:text-[#EFEFE6] transition-colors"
+                title="Close sidebar"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
         <SearchBar ref={searchInputRef} value={searchQuery} onChange={setSearchQuery} />
       </div>
