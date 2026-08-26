@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { type Note, updateNote, createNote, getAllNotes, db } from '@/lib/db';
 import { renderMarkdown } from '@/lib/markdown';
 import { useToast } from './Toast';
+import { exportStyles, getExportHtmlContent, getPdfContainerHtml } from '@/lib/exportStyles';
 
 interface NoteHeaderProps {
   note: Note | null;
@@ -84,30 +85,7 @@ export default function NoteHeader({
   const handleExportHtml = () => {
     if (!note) return;
     const htmlContent = renderMarkdown(note.content);
-    const fullHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${note.title || 'Untitled'}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; color: #333; }
-    h1, h2, h3, h4, h5, h6 { margin-top: 1.5rem; margin-bottom: 0.5rem; }
-    code { background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; }
-    pre { background: #f4f4f4; padding: 1rem; border-radius: 5px; overflow-x: auto; }
-    pre code { background: transparent; padding: 0; }
-    blockquote { border-left: 4px solid #5542FF; margin: 0; padding-left: 1rem; color: #666; }
-    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
-    th { background: #f4f4f4; }
-    img { max-width: 100%; }
-    a { color: #5542FF; }
-  </style>
-</head>
-<body>
-${htmlContent}
-</body>
-</html>`;
+    const fullHtml = getExportHtmlContent(note.title || 'Untitled', htmlContent);
     const blob = new Blob([fullHtml], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -115,6 +93,7 @@ ${htmlContent}
     a.download = `${note.title || 'untitled'}.html`;
     a.click();
     URL.revokeObjectURL(url);
+    addToast('Exported as HTML', 'success');
     setShowExportMenu(false);
   };
 
@@ -127,38 +106,20 @@ ${htmlContent}
       const htmlContent = renderMarkdown(note.content);
       
       const container = document.createElement('div');
-      container.innerHTML = `
-        <h1 style="font-size: 24px; margin-bottom: 16px; color: #1a1a1a;">${note.title || 'Untitled'}</h1>
-        <div style="font-size: 14px; line-height: 1.6; color: #333;">
-          ${htmlContent}
-        </div>
-      `;
+      container.innerHTML = getPdfContainerHtml(note.title || 'Untitled', htmlContent);
       
       // Add styles for PDF
       const style = document.createElement('style');
-      style.textContent = `
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        h1, h2, h3, h4, h5, h6 { margin-top: 16px; margin-bottom: 8px; }
-        p { margin-bottom: 12px; }
-        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
-        pre { background: #f4f4f4; padding: 12px; border-radius: 4px; overflow-x: auto; }
-        pre code { background: transparent; padding: 0; }
-        blockquote { border-left: 4px solid #5542FF; margin: 0; padding-left: 12px; color: #666; }
-        table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #f4f4f4; }
-        img { max-width: 100%; }
-        a { color: #5542FF; }
-      `;
+      style.textContent = exportStyles;
       
       container.prepend(style);
       
       const opt = {
-        margin: 1,
+        margin: [15, 15, 15, 15] as [number, number, number, number],
         filename: `${note.title || 'untitled'}.pdf`,
         image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
       };
       
       await html2pdf().from(container).set(opt).save();
@@ -177,7 +138,7 @@ ${htmlContent}
     setIsExporting(true);
     
     try {
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, TableRow, TableCell, Table, WidthType, BorderStyle } = await import('docx');
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, WidthType, TabStopPosition, TabStopType, ExternalHyperlink } = await import('docx');
       const { saveAs } = await import('file-saver');
       
       // Parse markdown content into docx paragraphs
@@ -185,45 +146,132 @@ ${htmlContent}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const children: any[] = [];
       
+      // Color scheme matching the app
+      const colors = {
+        primary: '5542FF',
+        text: '18181B',
+        textMuted: '71717A',
+        border: 'E4E4E7',
+        background: 'FAFAFA',
+      };
+      
       for (const line of lines) {
-        // Headers
+        // Headers with matching styles
         if (line.startsWith('# ')) {
           children.push(new Paragraph({
-            children: [new TextRun({ text: line.slice(2), bold: true, size: 32 })],
+            children: [new TextRun({ 
+              text: line.slice(2), 
+              bold: true, 
+              size: 32,
+              color: colors.text,
+              font: 'Calibri',
+            })],
             heading: HeadingLevel.HEADING_1,
-            spacing: { after: 200 },
+            spacing: { before: 360, after: 200 },
+            border: {
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: colors.border, space: 8 },
+            },
           }));
         } else if (line.startsWith('## ')) {
           children.push(new Paragraph({
-            children: [new TextRun({ text: line.slice(3), bold: true, size: 28 })],
+            children: [new TextRun({ 
+              text: line.slice(3), 
+              bold: true, 
+              size: 28,
+              color: colors.text,
+              font: 'Calibri',
+            })],
             heading: HeadingLevel.HEADING_2,
-            spacing: { after: 200 },
+            spacing: { before: 320, after: 160 },
           }));
         } else if (line.startsWith('### ')) {
           children.push(new Paragraph({
-            children: [new TextRun({ text: line.slice(4), bold: true, size: 24 })],
+            children: [new TextRun({ 
+              text: line.slice(4), 
+              bold: true, 
+              size: 24,
+              color: colors.text,
+              font: 'Calibri',
+            })],
             heading: HeadingLevel.HEADING_3,
-            spacing: { after: 200 },
+            spacing: { before: 240, after: 120 },
+          }));
+        } else if (line.startsWith('#### ')) {
+          children.push(new Paragraph({
+            children: [new TextRun({ 
+              text: line.slice(5), 
+              bold: true, 
+              size: 22,
+              color: colors.text,
+              font: 'Calibri',
+            })],
+            heading: HeadingLevel.HEADING_4,
+            spacing: { before: 200, after: 100 },
           }));
         } else if (line.startsWith('> ')) {
-          // Blockquote
+          // Blockquote with left border styling
           children.push(new Paragraph({
-            children: [new TextRun({ text: line.slice(2), italics: true, color: '666666' })],
+            children: [new TextRun({ 
+              text: line.slice(2), 
+              italics: true, 
+              color: colors.textMuted,
+              font: 'Calibri',
+            })],
             indent: { left: 720 },
-            spacing: { after: 200 },
+            spacing: { before: 120, after: 120 },
+            border: {
+              left: { style: BorderStyle.SINGLE, size: 12, color: colors.primary, space: 8 },
+            },
+          }));
+        } else if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
+          // Task list
+          const isChecked = line.startsWith('- [x] ');
+          const text = line.slice(6);
+          children.push(new Paragraph({
+            children: [
+              new TextRun({ 
+                text: isChecked ? '☑ ' : '☐ ',
+                color: colors.primary,
+              }),
+              new TextRun({ 
+                text,
+                font: 'Calibri',
+                strike: isChecked,
+              }),
+            ],
+            spacing: { before: 60, after: 60 },
           }));
         } else if (line.startsWith('- ') || line.startsWith('* ')) {
-          // List item
+          // Bullet list
           children.push(new Paragraph({
-            children: [new TextRun({ text: line.slice(2) })],
+            children: [new TextRun({ 
+              text: line.slice(2),
+              font: 'Calibri',
+            })],
             bullet: { level: 0 },
-            spacing: { after: 100 },
+            spacing: { before: 60, after: 60 },
           }));
-        } else if (line.startsWith('---')) {
+        } else if (line.startsWith('1. ') || line.startsWith('2. ') || line.startsWith('3. ') || 
+                   line.startsWith('4. ') || line.startsWith('5. ') || line.startsWith('6. ') || 
+                   line.startsWith('7. ') || line.startsWith('8. ') || line.startsWith('9. ')) {
+          // Numbered list
+          const text = line.replace(/^\d+\.\s/, '');
+          children.push(new Paragraph({
+            children: [new TextRun({ 
+              text,
+              font: 'Calibri',
+            })],
+            numbering: { reference: 'numbered-list', level: 0 },
+            spacing: { before: 60, after: 60 },
+          }));
+        } else if (line.startsWith('---') || line.startsWith('***') || line.startsWith('___')) {
           // Horizontal rule
           children.push(new Paragraph({
             children: [new TextRun({ text: '' })],
-            spacing: { after: 200 },
+            spacing: { before: 200, after: 200 },
+            border: {
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: colors.border, space: 4 },
+            },
           }));
         } else if (line.trim() === '') {
           // Empty line
@@ -234,51 +282,195 @@ ${htmlContent}
           const textRuns: any[] = [];
           let remaining = line;
           
-          // Simple inline formatting (bold, italic, code)
+          // Handle links first: [text](url)
+          const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+          let lastIndex = 0;
+          let match;
+          
+          while ((match = linkRegex.exec(remaining)) !== null) {
+            // Add text before link
+            if (match.index > lastIndex) {
+              const beforeText = remaining.slice(lastIndex, match.index);
+              if (beforeText) {
+                textRuns.push(new TextRun({ text: beforeText, font: 'Calibri', color: colors.text }));
+              }
+            }
+            
+            // Add link
+            textRuns.push(new ExternalHyperlink({
+              children: [
+                new TextRun({
+                  text: match[1],
+                  style: 'Hyperlink',
+                  font: 'Calibri',
+                }),
+              ],
+              link: match[2],
+            }));
+            
+            lastIndex = match.index + match[0].length;
+          }
+          
+          // Add remaining text
+          if (lastIndex < remaining.length) {
+            remaining = remaining.slice(lastIndex);
+          }
+          
+          // Handle other inline formatting (bold, italic, code, strikethrough)
           while (remaining.length > 0) {
             const boldMatch = remaining.match(/\*\*(.*?)\*\*/);
             const italicMatch = remaining.match(/\*(.*?)\*/);
             const codeMatch = remaining.match(/`(.*?)`/);
+            const strikeMatch = remaining.match(/~~(.*?)~~/);
             
             if (boldMatch && boldMatch.index !== undefined) {
               if (boldMatch.index > 0) {
-                textRuns.push(new TextRun({ text: remaining.slice(0, boldMatch.index) }));
+                textRuns.push(new TextRun({ text: remaining.slice(0, boldMatch.index), font: 'Calibri', color: colors.text }));
               }
-              textRuns.push(new TextRun({ text: boldMatch[1], bold: true }));
+              textRuns.push(new TextRun({ text: boldMatch[1], bold: true, font: 'Calibri', color: colors.text }));
               remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
             } else if (italicMatch && italicMatch.index !== undefined) {
               if (italicMatch.index > 0) {
-                textRuns.push(new TextRun({ text: remaining.slice(0, italicMatch.index) }));
+                textRuns.push(new TextRun({ text: remaining.slice(0, italicMatch.index), font: 'Calibri', color: colors.text }));
               }
-              textRuns.push(new TextRun({ text: italicMatch[1], italics: true }));
+              textRuns.push(new TextRun({ text: italicMatch[1], italics: true, font: 'Calibri', color: colors.text }));
               remaining = remaining.slice(italicMatch.index + italicMatch[0].length);
             } else if (codeMatch && codeMatch.index !== undefined) {
               if (codeMatch.index > 0) {
-                textRuns.push(new TextRun({ text: remaining.slice(0, codeMatch.index) }));
+                textRuns.push(new TextRun({ text: remaining.slice(0, codeMatch.index), font: 'Calibri', color: colors.text }));
               }
-              textRuns.push(new TextRun({ text: codeMatch[1], font: 'Courier New' }));
+              textRuns.push(new TextRun({ 
+                text: codeMatch[1], 
+                font: 'Consolas',
+                shading: { fill: colors.background },
+              }));
               remaining = remaining.slice(codeMatch.index + codeMatch[0].length);
+            } else if (strikeMatch && strikeMatch.index !== undefined) {
+              if (strikeMatch.index > 0) {
+                textRuns.push(new TextRun({ text: remaining.slice(0, strikeMatch.index), font: 'Calibri', color: colors.text }));
+              }
+              textRuns.push(new TextRun({ text: strikeMatch[1], strike: true, font: 'Calibri', color: colors.textMuted }));
+              remaining = remaining.slice(strikeMatch.index + strikeMatch[0].length);
             } else {
-              textRuns.push(new TextRun({ text: remaining }));
+              textRuns.push(new TextRun({ text: remaining, font: 'Calibri', color: colors.text }));
               remaining = '';
             }
           }
           
+          if (textRuns.length === 0) {
+            textRuns.push(new TextRun({ text: line, font: 'Calibri', color: colors.text }));
+          }
+          
           children.push(new Paragraph({
             children: textRuns,
-            spacing: { after: 200 },
+            spacing: { before: 80, after: 160 },
           }));
         }
       }
       
       const doc = new Document({
+        numbering: {
+          config: [
+            {
+              reference: 'numbered-list',
+              levels: [
+                {
+                  level: 0,
+                  format: 'decimal',
+                  text: '%1.',
+                  alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+                },
+              ],
+            },
+          ],
+        },
+        styles: {
+          default: {
+            document: {
+              run: {
+                font: 'Calibri',
+                size: 24,
+                color: colors.text,
+              },
+              paragraph: {
+                spacing: { line: 360 },
+              },
+            },
+            heading1: {
+              run: {
+                font: 'Calibri',
+                size: 32,
+                bold: true,
+                color: colors.text,
+              },
+            },
+            heading2: {
+              run: {
+                font: 'Calibri',
+                size: 28,
+                bold: true,
+                color: colors.text,
+              },
+            },
+            heading3: {
+              run: {
+                font: 'Calibri',
+                size: 24,
+                bold: true,
+                color: colors.text,
+              },
+            },
+          },
+          paragraphStyles: [
+            {
+              id: 'Hyperlink',
+              name: 'Hyperlink',
+              run: {
+                color: colors.primary,
+                underline: { type: 'single' as any },
+              },
+            },
+          ],
+        },
         sections: [{
-          properties: {},
+          properties: {
+            page: {
+              margin: {
+                top: 1440,
+                right: 1440,
+                bottom: 1440,
+                left: 1440,
+              },
+            },
+          },
           children: [
             new Paragraph({
-              children: [new TextRun({ text: note.title || 'Untitled', bold: true, size: 36 })],
+              children: [new TextRun({ 
+                text: note.title || 'Untitled', 
+                bold: true, 
+                size: 40,
+                color: colors.text,
+                font: 'Calibri',
+              })],
               heading: HeadingLevel.TITLE,
-              alignment: AlignmentType.CENTER,
+              alignment: AlignmentType.LEFT,
+              spacing: { after: 120 },
+              border: {
+                bottom: { style: BorderStyle.SINGLE, size: 8, color: colors.primary, space: 12 },
+              },
+            }),
+            new Paragraph({
+              children: [new TextRun({ 
+                text: new Date(note.updatedAt).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                }),
+                font: 'Calibri',
+                color: colors.textMuted,
+                size: 20,
+              })],
               spacing: { after: 400 },
             }),
             ...children,
